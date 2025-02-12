@@ -1,0 +1,20 @@
+{
+  "zoltam": {
+    "lastStatus": {
+      "online": true,
+      "world": "minecraft_world_spawn"
+    },
+    "trackedBy": [
+      "501268258473771009"
+    ]
+  },
+  "kabanalp": {
+    "lastStatus": {
+      "online": false,
+      "world": null
+    },
+    "trackedBy": [
+      "501268258473771009"
+    ]
+  }
+}

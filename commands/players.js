@@ -11,7 +11,6 @@ export async function execute(interaction) {
         const onlinePlayers = await fetchOnlinePlayers();
         const lands = await fetchLands();
 
-                // Build player map: name => { landName, nationName }
                 const playerMap = new Map();
                 for (const land of lands) {
                     for (const playerName of land.playersList) {
@@ -23,7 +22,6 @@ export async function execute(interaction) {
                     }
                 }
 
-                // Format each player's entry
                 const formattedPlayers = onlinePlayers.map(player => {
                     const info = playerMap.get(player.name.toLowerCase());
                     const landPart = info ? ` (${info.landName})` : '';
@@ -37,14 +35,13 @@ export async function execute(interaction) {
                     return;
                 }
 
-                // Prepare embeds
                 const embeds = [];
                 let currentChunk = [];
                 let currentLength = 0;
 
                 for (const playerEntry of formattedPlayers) {
-                    const entryLength = playerEntry.length + 2; // Account for ", "
-                    if (currentLength + entryLength > 4096) { // Embed description limit
+                    const entryLength = playerEntry.length + 2;
+                    if (currentLength + entryLength > 4096) {
                         embeds.push({
                             color: 0x0099ff,
                             title: embeds.length === 0 ? `Online Players (${formattedPlayers.length})` : '',
@@ -67,7 +64,7 @@ export async function execute(interaction) {
                     });
                 }
 
-                await interaction.editReply({ embeds: embeds.slice(0, 10) }); // Send up to 10 embeds
+                await interaction.editReply({ embeds: embeds.slice(0, 10) });
     } catch (error) {
         await interaction.editReply('Error fetching players');
     }

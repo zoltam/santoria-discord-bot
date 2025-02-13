@@ -29,7 +29,6 @@ export async function fetchLands() {
                 let nationName = 'None';
                 let nationInfo = '';
             
-                // Calculate coordinates
                 if (marker.points && marker.points[0] && marker.points[0].length > 0) {
                     const points = marker.points[0];
                     const total = points.reduce((acc, point) => {
@@ -42,12 +41,10 @@ export async function fetchLands() {
                     avgZ = Math.round(total.z / points.length);
                 }
             
-                // Extract information from tooltip
                 const tooltipText = marker.tooltip.replace(/<[^>]*>/g, ' ');
                 const sections = tooltipText.split(/\s{2,}/);
 
                 for (const section of sections) {
-                    // Players section
                     const playersMatch = section.match(/^Players \((\d+)\): (.*)$/s);
                     if (playersMatch) {
                         playersCount = parseInt(playersMatch[1]);
@@ -57,7 +54,6 @@ export async function fetchLands() {
                             .filter(p => p);
                     }
 
-                    // Nation section
                     const nationMatch = section.match(/^This land belongs to nation (.*?):\s*(.*)$/s);
                     if (nationMatch) {
                         nationName = nationMatch[1];

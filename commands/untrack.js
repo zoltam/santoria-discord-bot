@@ -35,7 +35,6 @@ export async function autocomplete(interaction) {
         const tracked = [];
         
         for (const [_, data] of trackedPlayers) {
-            // Ensure we have a valid username and the user is tracking it
             if (data?.trackedBy?.has(userId) && data.originalUsername) {
                 tracked.push(data.originalUsername);
             }

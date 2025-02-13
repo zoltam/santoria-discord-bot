@@ -21,7 +21,7 @@ const commands = [landData, playersData, trackData, untrackData];
 
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
-    await initTrackers(); // Initialize trackers before anything else
+    await initTrackers();
     
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {

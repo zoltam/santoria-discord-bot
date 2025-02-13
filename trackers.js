@@ -5,18 +5,16 @@ import path from 'path';
 const TRACKERS_FILE = path.resolve('./trackers.json');
 let trackedPlayers = new Map();
 
-// Initialize trackers from file
 export async function initTrackers() {
     try {
         const data = await fs.readFile(TRACKERS_FILE, 'utf-8');
         const raw = JSON.parse(data);
         
-        // Inside initTrackers() when loading from JSON
 trackedPlayers = new Map(
     Object.entries(raw).map(([username, entry]) => [
         username,
         {
-            originalUsername: entry.originalUsername || username, // Fallback to map key
+            originalUsername: entry.originalUsername || username,
             lastStatus: entry.lastStatus,
             trackedBy: new Set(entry.trackedBy)
         }
@@ -61,7 +59,6 @@ export function addTracker(username, userId, isOnline, world) {
     saveTrackers();
 }
 
-// Add this if you want removal functionality
 export function removeTracker(username, userId) {
     const key = username.toLowerCase();
     const data = trackedPlayers.get(key);
@@ -89,7 +86,6 @@ export async function checkTrackers(client) {
                 world: current?.world || null
             };
             
-            // Check status changes
             if (newStatus.online !== data.lastStatus.online) {
                 notifyStatusChange(client, data.trackedBy, username, newStatus);
             } else if (newStatus.online && newStatus.world !== data.lastStatus.world) {

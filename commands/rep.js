@@ -28,7 +28,7 @@ export async function execute(interaction) {
             .sort((a, b) => a.points - b.points); // Sort by lowest reputation first
             
         if (reputations.length === 0) {
-            await interaction.editReply('No players with reputation 20 or lower are currently online.');
+            await interaction.editReply(`No players with reputation 20 or lower are currently online. Last updated at ${new Date(result.lastUpdate).toLocaleTimeString()}`);
             return;
         }
         

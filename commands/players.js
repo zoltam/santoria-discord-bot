@@ -1,4 +1,5 @@
 import { fetchOnlinePlayers, fetchLands } from '../utils.js';
+import { getMineflayerBot } from '../mineflayerBot.js';
 
 export const data = {
     name: 'players',
@@ -10,6 +11,8 @@ export async function execute(interaction) {
     try {
         const onlinePlayers = await fetchOnlinePlayers();
         const lands = await fetchLands();
+        const reputationBot = getMineflayerBot();
+        const repData = await reputationBot.getReputations();
 
                 const playerMap = new Map();
                 for (const land of lands) {
@@ -24,10 +27,17 @@ export async function execute(interaction) {
 
                 const formattedPlayers = onlinePlayers.map(player => {
                     const info = playerMap.get(player.name.toLowerCase());
+                    const rep = repData.data.get(player.name.toLowerCase());
+                    
                     const landPart = info ? ` (${info.landName})` : '';
                     const nationPart = info && info.nationName !== 'None' ? ` (${info.nationName})` : '';
                     const worldPart = player.world === 'minecraft_world_spawn' ? ' (aether)' : '';
-                    return `${player.name}${landPart}${nationPart}${worldPart}`;
+                    
+                    // Add reputation if available
+                    const repPart = rep ? ` [${rep.points}]` : '';
+                    const warningSymbol = rep && rep.points <= 20 ? ' ⚠️' : '';
+                    
+                    return `${player.name}${repPart}${warningSymbol}${landPart}${nationPart}${worldPart}`;
                 });
 
                 if (formattedPlayers.length === 0) {
@@ -46,7 +56,9 @@ export async function execute(interaction) {
                             color: 0x0099ff,
                             title: embeds.length === 0 ? `Online Players (${formattedPlayers.length})` : '',
                             description: currentChunk.join(', '),
-                            footer: embeds.length === 0 ? { text: 'Player information from Atlas Map' } : undefined
+                            footer: embeds.length === 0 ? { 
+                                text: `Player information from Atlas Map | Rep data ${new Date(repData.lastUpdate).toLocaleTimeString()}` 
+                            } : undefined
                         });
                         currentChunk = [];
                         currentLength = 0;
@@ -60,12 +72,15 @@ export async function execute(interaction) {
                         color: 0x0099ff,
                         title: embeds.length === 0 ? `Online Players (${formattedPlayers.length})` : '',
                         description: currentChunk.join(', '),
-                        footer: embeds.length === 0 ? { text: 'Player information from Atlas Map' } : undefined
+                        footer: embeds.length === 0 ? { 
+                            text: `Player information from Atlas Map | Rep data ${new Date(repData.lastUpdate).toLocaleTimeString()}` 
+                        } : undefined
                     });
                 }
 
                 await interaction.editReply({ embeds: embeds.slice(0, 10) });
     } catch (error) {
+        console.error('Error executing players command:', error);
         await interaction.editReply('Error fetching players');
     }
 }

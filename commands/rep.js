@@ -14,7 +14,7 @@ export async function execute(interaction) {
     try {
         const bot = getMineflayerBot();
         
-        // Get reputations
+        // Get reputations from cache (bot now updates periodically)
         const result = await bot.getReputations();
         
         if (!result.success) {
@@ -35,6 +35,9 @@ export async function execute(interaction) {
         // Fetch lands and online players
         const lands = await fetchLands();
         const onlinePlayers = await fetchOnlinePlayers();
+        
+        // Create set of online player names for easy lookup
+        const onlinePlayerNames = new Set(onlinePlayers.map(player => player.name.toLowerCase()));
 
         // Create a map for player land information
         const playerMap = new Map();
@@ -51,12 +54,14 @@ export async function execute(interaction) {
         // Create embed
         const embed = new EmbedBuilder()
             .setColor(0xFF5555)
-            .setTitle('⚠️ Low Reputation Players Online')
-            .setDescription(result.cached ? '*Data is cached (max 5 minutes old)*' : '*Data is fresh*')
+            .setTitle('⚠️ Low Reputation Players')
+            .setDescription(`*Data updated at ${new Date(result.lastUpdate).toLocaleTimeString()}*`)
             .setTimestamp();
             
         // Add fields for each player
         for (const rep of reputations) {
+            const isOnline = onlinePlayerNames.has(rep.name.toLowerCase());
+            const status = isOnline ? '🟢 Online' : '⚫ Offline';
             const skull = rep.points <= 0 ? '💀 ' : '';
             const playerInfo = playerMap.get(rep.name.toLowerCase());
             const land = playerInfo ? playerInfo.landName : 'Unknown';
@@ -64,7 +69,7 @@ export async function execute(interaction) {
             
             embed.addFields({
                 name: `${skull}${rep.name} (${rep.points})`,
-                value: `**${rep.title}** | +${rep.hourlyGain}/hr\n**Land:** ${land}\n**Coordinates:** ${coordinates}`,
+                value: `**${rep.title}** | +${rep.hourlyGain}/hr\n**Status:** ${status}\n**Land:** ${land}\n**Coordinates:** ${coordinates}`,
                 inline: false
             });
         }

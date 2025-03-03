@@ -26,18 +26,15 @@ client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     await initTrackers();
     
-    // Connect Mineflayer bot
+    // Start periodic reputation updates
     const bot = getMineflayerBot();
-    const connected = await bot.connect(MINECRAFT_USERNAME);
-    
-    if (!connected) {
-        console.error("Failed to connect Mineflayer bot. Reputation features will not work.");
-    }
+    bot.startPeriodicUpdates().catch(error => {
+        console.error("Failed to start reputation updates:", error);
+    });
     
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-        console.log(commands)
         console.log('Commands registered');
     } catch (error) {
         console.error('Error registering commands:', error);
@@ -70,7 +67,7 @@ client.on('interactionCreate', async interaction => {
 process.on('SIGINT', () => {
     console.log('Shutting down...');
     const bot = getMineflayerBot();
-    bot.disconnect();
+    bot.stop();
     process.exit(0);
 });
 

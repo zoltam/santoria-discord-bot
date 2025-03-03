@@ -111,7 +111,7 @@ class ReputationBot extends EventEmitter {
                                 points: parseInt(repMatch[3]),
                                 hourlyGain: parseInt(repMatch[4])
                             });
-                            if (parseInt(repMatch[3]) <= 20) {
+                            if (parseInt(repMatch[3]) <= 30) {
                                 console.log(`⚠️ ${playerName} (${repMatch[3]})`);
                             } else {
                                 console.log(`${playerName} (${repMatch[3]})`);

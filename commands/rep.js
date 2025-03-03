@@ -22,13 +22,13 @@ export async function execute(interaction) {
             return;
         }
         
-        // Convert Map to array and filter reputations <= 20
+        // Convert Map to array and filter reputations <= 30
         const reputations = Array.from(result.data.values())
-            .filter(rep => rep.points <= 20)
+            .filter(rep => rep.points <= 30)
             .sort((a, b) => a.points - b.points); // Sort by lowest reputation first
             
         if (reputations.length === 0) {
-            await interaction.editReply(`No players with reputation 20 or lower are currently online. Last updated at ${new Date(result.lastUpdate).toLocaleTimeString()}`);
+            await interaction.editReply(`No players with reputation 30 or lower are currently online. Last updated at ${new Date(result.lastUpdate).toLocaleTimeString()}`);
             return;
         }
         

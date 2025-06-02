@@ -19,7 +19,7 @@ export async function execute(interaction) {
     const player = onlinePlayers.find(p => p.name.toLowerCase() === playerName.toLowerCase());
     
     addTracker(
-        playerName.toLowerCase(),
+        playerName, // Pass original casing for originalUsername
         userId,
         !!player,
         player?.world || null

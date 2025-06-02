@@ -36,6 +36,7 @@ async function saveTrackers() {
             Array.from(trackedPlayers.entries()).map(([username, data]) => [
                 username,
                 {
+                    originalUsername: data.originalUsername,
                     lastStatus: data.lastStatus,
                     trackedBy: Array.from(data.trackedBy)
                 }

@@ -16,7 +16,7 @@ export async function execute(interaction) {
     const playerName = interaction.options.getString('player');
     const userId = interaction.user.id;
 
-    const success = removeTracker(playerName, userId);
+    const success = removeTracker(playerName.toLowerCase(), userId);
     
     await interaction.reply({
         content: success ? 

@@ -5,6 +5,7 @@ import { data as playersData, execute as playersExecute } from './commands/playe
 import { data as trackData, execute as trackExecute } from './commands/track.js';
 import { data as untrackData, execute as untrackExecute, autocomplete as untrackAutocomplete } from './commands/untrack.js';
 import { data as repData, execute as repExecute } from './commands/rep.js';
+import { data as trackedData, execute as trackedExecute } from './commands/tracked.js';
 import { checkTrackers } from './trackers.js';
 import { initTrackers } from './trackers.js';
 import { getMineflayerBot } from './mineflayerBot.js';
@@ -20,7 +21,7 @@ if (!TOKEN || !CLIENT_ID) {
     process.exit(1);
 }
 
-const commands = [landData, playersData, trackData, untrackData, repData];
+const commands = [landData, playersData, trackData, untrackData, repData, trackedData];
 
 client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -60,6 +61,7 @@ client.on('interactionCreate', async interaction => {
         case 'players': await playersExecute(interaction); break;
         case 'track': await trackExecute(interaction); break;
         case 'rep': await repExecute(interaction); break;
+        case 'tracked': await trackedExecute(interaction); break;
     }
 });
 

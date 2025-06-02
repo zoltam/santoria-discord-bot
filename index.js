@@ -14,10 +14,11 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const MINECRAFT_USERNAME = process.env.MINECRAFT_USERNAME || 'SantoriaDiscordBot';
 
-if (!TOKEN || !CLIENT_ID) {
-    console.error("Missing Discord environment variables");
+if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
+    console.error("Missing Discord environment variables (TOKEN, CLIENT_ID, or GUILD_ID)");
     process.exit(1);
 }
 
@@ -34,11 +35,15 @@ client.on('ready', async () => {
     });
     
     const rest = new REST({ version: '10' }).setToken(TOKEN);
+    console.log('Attempting to register slash commands...');
     try {
-        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-        console.log('Commands registered');
+        await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+        console.log('Successfully registered slash commands for the guild.');
     } catch (error) {
-        console.error('Error registering commands:', error);
+        console.error('Error registering guild commands:', error);
+        if (error.rawError) {
+            console.error('Discord API Error Details:', error.rawError);
+        }
     }
     
     setInterval(() => checkTrackers(client), 30000);

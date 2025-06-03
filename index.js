@@ -63,6 +63,30 @@ client.on('interactionCreate', async interaction => {
         return;
     }
     
+    if (interaction.isButton()) {
+        if (interaction.customId.startsWith('show_land_info_')) {
+            const landName = interaction.customId.replace('show_land_info_', '').replace(/_/g, ' ');
+            // Create a mock interaction object for the land command
+            const mockInteraction = {
+                options: {
+                    getString: (name) => {
+                        if (name === 'name') return landName;
+                        return null;
+                    }
+                },
+                reply: interaction.reply.bind(interaction),
+                editReply: interaction.editReply.bind(interaction),
+                deferReply: interaction.deferReply.bind(interaction),
+                user: interaction.user,
+                guildId: interaction.guildId,
+                channelId: interaction.channelId,
+                // Add other properties if landExecute requires them
+            };
+            await landExecute(mockInteraction);
+        }
+        return;
+    }
+    
     if (!interaction.isCommand()) return;
     
     switch (interaction.commandName) {

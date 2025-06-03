@@ -3,6 +3,8 @@ import { EmbedBuilder } from 'discord.js';
 import { fetchLands } from '../utils.js';
 import { fetchOnlinePlayers } from '../utils.js';
 
+const ENABLE_MINEFLAYER = process.env.ENABLE_MINEFLAYER === 'true';
+
 export const data = {
     name: 'rep',
     description: 'Show reputations of online players'
@@ -10,6 +12,11 @@ export const data = {
 
 export async function execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
+
+    if (!ENABLE_MINEFLAYER) {
+        await interaction.editReply('Mineflayer features are currently disabled, so reputation data cannot be fetched.');
+        return;
+    }
 
     try {
         const bot = getMineflayerBot();

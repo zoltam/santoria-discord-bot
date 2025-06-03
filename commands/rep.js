@@ -1,14 +1,14 @@
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getMineflayerBot } from '../mineflayerBot.js';
-import { EmbedBuilder } from 'discord.js';
 import { fetchLands } from '../utils.js';
 import { fetchOnlinePlayers } from '../utils.js';
 
 const ENABLE_MINEFLAYER = process.env.ENABLE_MINEFLAYER === 'true';
 
-export const data = {
-    name: 'rep',
-    description: 'Show reputations of online players'
-};
+export const data = new SlashCommandBuilder()
+    .setName('rep')
+    .setDescription('Show reputations of online players')
+    .setDMPermission(true);
 
 export async function execute(interaction) {
     await interaction.deferReply({ ephemeral: true });

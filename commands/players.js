@@ -1,12 +1,13 @@
+import { SlashCommandBuilder } from 'discord.js';
 import { fetchOnlinePlayers, fetchLands } from '../utils.js';
 import { getMineflayerBot } from '../mineflayerBot.js';
 
 const ENABLE_MINEFLAYER = process.env.ENABLE_MINEFLAYER === 'true';
 
-export const data = {
-    name: 'players',
-    description: 'List online players'
-};
+export const data = new SlashCommandBuilder()
+    .setName('players')
+    .setDescription('List online players')
+    .setDMPermission(true);
 
 export async function execute(interaction) {
     await interaction.deferReply({ ephemeral: true });

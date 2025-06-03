@@ -1,16 +1,15 @@
+import { SlashCommandBuilder } from 'discord.js';
 import { removeTracker, getTrackedPlayers } from '../trackers.js';
 
-export const data = {
-    name: 'untrack',
-    description: 'Stop tracking a player',
-    options: [{
-        name: 'player',
-        type: 3,
-        description: 'Minecraft username to stop tracking',
-        required: true,
-        autocomplete: true
-    }]
-};
+export const data = new SlashCommandBuilder()
+    .setName('untrack')
+    .setDescription('Stop tracking a player')
+    .addStringOption(option =>
+        option.setName('player')
+            .setDescription('Minecraft username to stop tracking')
+            .setRequired(true)
+            .setAutocomplete(true))
+    .setDMPermission(true);
 
 export async function execute(interaction) {
     const playerName = interaction.options.getString('player');

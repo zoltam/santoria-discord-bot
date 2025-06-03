@@ -1,16 +1,15 @@
+import { SlashCommandBuilder } from 'discord.js';
 import { fetchOnlinePlayers } from '../utils.js';
 import { addTracker } from '../trackers.js';
 
-export const data = {
-    name: 'track',
-    description: 'Track a player',
-    options: [{
-        name: 'player',
-        type: 3,
-        description: 'Minecraft username',
-        required: true
-    }]
-};
+export const data = new SlashCommandBuilder()
+    .setName('track')
+    .setDescription('Track a player')
+    .addStringOption(option =>
+        option.setName('player')
+            .setDescription('Minecraft username')
+            .setRequired(true))
+    .setDMPermission(true);
 
 export async function execute(interaction) {
     const playerName = interaction.options.getString('player');

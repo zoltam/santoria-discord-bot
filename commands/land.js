@@ -1,17 +1,16 @@
+import { SlashCommandBuilder } from 'discord.js';
 import { fetchLands } from '../utils.js';
 import { fetchOnlinePlayers } from '../utils.js';
 
-export const data = {
-    name: 'land',
-    description: 'Search for a land in the Minecraft server',
-    options: [{
-        name: 'name',
-        type: 3,
-        description: 'Name of the land to search for',
-        required: true,
-        autocomplete: true
-    }]
-};
+export const data = new SlashCommandBuilder()
+    .setName('land')
+    .setDescription('Search for a land in the Minecraft server')
+    .addStringOption(option =>
+        option.setName('name')
+            .setDescription('Name of the land to search for')
+            .setRequired(true)
+            .setAutocomplete(true))
+    .setDMPermission(true);
 
 export async function execute(interaction) {
     const searchTerm = interaction.options.getString('name');

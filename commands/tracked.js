@@ -1,7 +1,7 @@
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getTrackedPlayers } from '../trackers.js';
 import { getMineflayerBot } from '../mineflayerBot.js';
 import { fetchLands, fetchOnlinePlayers } from '../utils.js';
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
 function getWorldName(world) {
     return world === 'minecraft_overworld' ? 'Atlas' :
@@ -10,10 +10,10 @@ function getWorldName(world) {
 
 const ENABLE_MINEFLAYER = process.env.ENABLE_MINEFLAYER === 'true';
 
-export const data = {
-    name: 'tracked',
-    description: 'List all players you are currently tracking.'
-};
+export const data = new SlashCommandBuilder()
+    .setName('tracked')
+    .setDescription('List all players you are currently tracking.')
+    .setDMPermission(true);
 
 export async function execute(interaction) {
     await interaction.deferReply({ ephemeral: true });

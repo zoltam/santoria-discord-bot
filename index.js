@@ -26,6 +26,7 @@ if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
 const commands = [landData, playersData, trackData, untrackData, repData, trackedData];
 
 client.on('ready', async () => {
+    console.log('ENABLE_MINEFLAYER:', process.env.ENABLE_MINEFLAYER, '=>', ENABLE_MINEFLAYER);
     console.log(`Logged in as ${client.user.tag}`);
     await initTrackers();
     

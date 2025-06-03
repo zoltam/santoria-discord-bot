@@ -16,6 +16,7 @@ const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 const MINECRAFT_USERNAME = process.env.MINECRAFT_USERNAME || 'SantoriaDiscordBot';
+const ENABLE_MINEFLAYER = process.env.ENABLE_MINEFLAYER === 'true'; // Read the toggle
 
 if (!TOKEN || !CLIENT_ID || !GUILD_ID) {
     console.error("Missing Discord environment variables (TOKEN, CLIENT_ID, or GUILD_ID)");
@@ -28,11 +29,15 @@ client.on('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     await initTrackers();
     
-    // Start periodic reputation updates
-    const bot = getMineflayerBot();
-    bot.startPeriodicUpdates().catch(error => {
-        console.error("Failed to start reputation updates:", error);
-    });
+    // Conditionally start periodic reputation updates
+    if (ENABLE_MINEFLAYER) {
+        const bot = getMineflayerBot();
+        bot.startPeriodicUpdates().catch(error => {
+            console.error("Failed to start reputation updates:", error);
+        });
+    } else {
+        console.log('Mineflayer features are disabled.');
+    }
     
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     console.log('Attempting to register slash commands...');
@@ -73,8 +78,10 @@ client.on('interactionCreate', async interaction => {
 // Handle process exit
 process.on('SIGINT', () => {
     console.log('Shutting down...');
-    const bot = getMineflayerBot();
-    bot.stop();
+    if (ENABLE_MINEFLAYER) {
+        const bot = getMineflayerBot();
+        bot.stop();
+    }
     process.exit(0);
 });
 

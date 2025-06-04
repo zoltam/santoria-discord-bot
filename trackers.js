@@ -2,7 +2,7 @@ import { fetchOnlinePlayers } from './utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 
-const TRACKERS_FILE = path.resolve('./trackers.json');
+const TRACKERS_FILE = path.resolve('./data/trackers.json');
 let trackedPlayers = new Map();
 
 export async function initTrackers() {

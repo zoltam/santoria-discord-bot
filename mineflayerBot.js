@@ -96,15 +96,17 @@ class ReputationBot extends EventEmitter {
                 this.reputationData.clear();
                 for (const playerName of playerNames) {
                     try {
-                        const repResponse = await this.sendCommand(`rep ${playerName}`);
-                        const repMatch = repResponse.match(/(\w+)'s Reputation\s*([\w\s!]+)\s*\(([-\d]+) points\) \| \+?([-+\d]+)\/hr/);
+                        const { plainText, hoverTexts } = await this.sendCommand(`rep ${playerName}`);
+                        const repMatch = plainText.match(/(\w+)'s Reputation\s*([\w\s!]+)\s*\(([-\d]+) points\) \| \+?([-+\d]+)\/hr/);
                         if (repMatch) {
                             this.reputationData.set(playerName.toLowerCase(), {
                                 name: playerName,
                                 title: repMatch[2].trim(),
                                 points: parseInt(repMatch[3]),
-                                hourlyGain: parseInt(repMatch[4])
+                                hourlyGain: parseInt(repMatch[4]),
+                                hoverInfo: hoverTexts.join('\n') // Store hover text as a single string
                             });
+                            console.log(`Hover Info for ${playerName}:`, this.reputationData.get(playerName.toLowerCase()).hoverInfo); // Log hoverinfos
                             if (parseInt(repMatch[3]) <= 30) {
                                 console.log(`⚠️ ${playerName} (${repMatch[3]})`);
                             } else {
@@ -263,6 +265,52 @@ class ReputationBot extends EventEmitter {
         });
     }
 
+    // Helper function to extract hover text from a ChatMessage component
+    extractHoverText(component) {
+        let hoverTexts = [];
+        if (component && component.hoverEvent && component.hoverEvent.contents) {
+            // Mineflayer's ChatMessage.toAnsi() can convert complex hover contents to plain text
+            // For example, if contents is an array of text components or a NBT tag
+            const hoverContent = component.hoverEvent.contents;
+            if (Array.isArray(hoverContent)) {
+                hoverContent.forEach(item => {
+                    if (item.text) hoverTexts.push(item.text);
+                    // Recursively check for nested hover events if the item itself is a component
+                    if (item.extra) {
+                        item.extra.forEach(extraPart => {
+                            hoverTexts = hoverTexts.concat(this.extractHoverText(extraPart));
+                        });
+                    }
+                });
+            } else if (hoverContent.text) {
+                hoverTexts.push(hoverContent.text);
+            } else if (typeof hoverContent === 'string') { // Sometimes contents might be a plain string
+                hoverTexts.push(hoverContent);
+            } else if (hoverContent.nbt) { // Handle NBT data if present
+                // For NBT, you might need a more sophisticated parser depending on the NBT structure
+                // For now, we'll just stringify it or look for a 'text' field if it's a JSON object
+                try {
+                    const parsedNbt = JSON.parse(hoverContent.nbt);
+                    if (parsedNbt.text) {
+                        hoverTexts.push(parsedNbt.text);
+                    } else {
+                        hoverTexts.push(JSON.stringify(parsedNbt));
+                    }
+                } catch (e) {
+                    hoverTexts.push(hoverContent.nbt);
+                }
+            }
+        }
+
+        // If this message has extra parts (e.g., formatted sections)
+        if (component && component.extra) {
+            for (const extraPart of component.extra) {
+                hoverTexts = hoverTexts.concat(this.extractHoverText(extraPart));
+            }
+        }
+        return hoverTexts;
+    }
+
     async sendCommand(command) {
         return new Promise((resolve, reject) => {
             if (!this.connected || !this.bot) {
@@ -270,21 +318,25 @@ class ReputationBot extends EventEmitter {
                 return;
             }
     
-            const responseHandler = (message) => {
+            const responseHandler = (messageJson) => {
                 // Remove listener after receiving a response
                 if (this.bot) {
-                    this.bot.removeListener('messagestr', responseHandler);
+                    this.bot.removeListener('message', responseHandler);
                 }
-                resolve(message);
+                
+                const plainText = messageJson.toAnsi(); // Get plain text representation
+                const hoverTexts = this.extractHoverText(messageJson.json); // Extract hover texts from raw JSON
+
+                resolve({ plainText, hoverTexts });
             };
     
-            // Set up listener for the response
-            this.bot.once('messagestr', responseHandler);
+            // Set up listener for the full ChatMessage object
+            this.bot.once('message', responseHandler);
     
             // Set a timeout in case no response is received
             const timeout = setTimeout(() => {
                 if (this.bot) {
-                    this.bot.removeListener('messagestr', responseHandler);
+                    this.bot.removeListener('message', responseHandler);
                 }
                 reject(new Error('Command timed out'));
             }, 5000);

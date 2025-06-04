@@ -74,9 +74,14 @@ export async function execute(interaction) {
             const land = playerInfo ? playerInfo.landName : 'Unknown';
             const coordinates = playerInfo ? playerInfo.coordinates : 'Unknown';
             
+            let value = `**${rep.title}** | +${rep.hourlyGain}/hr\n**Status:** ${status}\n**Land:** ${land}\n**Coordinates:** ${coordinates}`;
+            if (rep.hoverInfo) {
+                value += `\n**Hover Info:**\n\`\`\`\n${rep.hoverInfo}\n\`\`\``;
+            }
+            
             embed.addFields({
                 name: `${skull}${rep.name} (${rep.points})`,
-                value: `**${rep.title}** | +${rep.hourlyGain}/hr\n**Status:** ${status}\n**Land:** ${land}\n**Coordinates:** ${coordinates}`,
+                value: value,
                 inline: false
             });
         }

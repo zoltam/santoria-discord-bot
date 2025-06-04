@@ -97,7 +97,7 @@ export async function execute(interaction) {
             if (landName !== 'N/A' && buttonCount < 5) { // Discord allows max 5 buttons per row
                 landButtons.addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`show_land_info_${landName.replace(/\s/g, '_')}`) // Custom ID for button
+                        .setCustomId(`show_land_info_${landName.replace(/\s/g, '_')}_${username.replace(/\s/g, '_')}`) // Custom ID for button
                         .setLabel(`Land: ${landName}`)
                         .setStyle(ButtonStyle.Secondary)
                 );

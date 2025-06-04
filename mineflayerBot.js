@@ -15,6 +15,7 @@ class ReputationBot extends EventEmitter {
         this.serverJoined = false;
         this.isUpdating = false;
         this.updateTimer = null;
+        this.isJoiningNationsAtlas = false; // New flag to prevent duplicate join attempts
     }
 
     async startPeriodicUpdates() {
@@ -66,12 +67,7 @@ class ReputationBot extends EventEmitter {
         this.isUpdating = true;
         console.log('Starting reputation data update cycle');
         try {
-            const connected = await this.connect(process.env.MINECRAFT_USERNAME || 'SantoriaDiscordBot');
-            if (!connected) {
-                console.error('Failed to connect for reputation update');
-                this.isUpdating = false;
-                return;
-            }
+            await this.connect(process.env.MINECRAFT_USERNAME || 'SantoriaDiscordBot');
             await new Promise(resolve => {
                 const checkJoined = setInterval(() => {
                     if (this.serverJoined) {
@@ -91,8 +87,6 @@ class ReputationBot extends EventEmitter {
                 return;
             }
             try {
-                // Add a delay to ensure the bot has time to join the correct server
-                await new Promise(resolve => setTimeout(resolve, 5000));
                 const validUsernameRegex = /^[a-zA-Z0-9_]{2,16}$/; 
                 const playerNames = Object.keys(this.bot.players).filter(player => player !== this.bot.username)
                     .filter(player => player !== this.bot.username)
@@ -137,21 +131,51 @@ class ReputationBot extends EventEmitter {
     }
 
     async connect(username) {
-        try {
-            console.log('Connecting Mineflayer bot to Santoria...');
-            this.bot = mineflayer.createBot({
-                host: 'play.santoria.net',
-                username: username, // unique identifier for cached auth
-                auth: 'microsoft',
-                version: '1.20.4'
-            });
+        return new Promise((resolve, reject) => {
+            if (this.connected && this.bot) {
+                console.log('Bot already connected.');
+                return resolve(true);
+            }
 
-            this.setupEventHandlers();
-            return true;
-        } catch (error) {
-            console.error('Failed to connect Mineflayer bot:', error);
-            return false;
-        }
+            console.log('Connecting Mineflayer bot to Santoria...');
+            try {
+                this.bot = mineflayer.createBot({
+                    host: 'play.santoria.net',
+                    username: username, // unique identifier for cached auth
+                    auth: 'microsoft',
+                    version: '1.20.4'
+                });
+
+                this.setupEventHandlers();
+
+                const loginTimeout = setTimeout(() => {
+                    this.bot.end();
+                    reject(new Error('Login timed out'));
+                }, 30000); // 30 seconds timeout for login
+
+                this.bot.once('login', () => {
+                    clearTimeout(loginTimeout);
+                    resolve(true);
+                });
+
+                this.bot.once('error', (err) => {
+                    clearTimeout(loginTimeout);
+                    reject(err);
+                });
+
+                this.bot.once('end', () => {
+                    clearTimeout(loginTimeout);
+                    // If 'end' happens before 'login', it's a failure to connect
+                    if (!this.connected) {
+                        reject(new Error('Bot disconnected before login.'));
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to create Mineflayer bot:', error);
+                reject(error);
+            }
+        });
     }
 
     setupEventHandlers() {
@@ -167,14 +191,28 @@ class ReputationBot extends EventEmitter {
             console.log(`Mineflayer bot logged in as ${this.bot.username}`);
             this.connected = true;
             this.reconnectAttempts = 0;
-            
-            // Join the Nations-Atlas server after login
-            console.log('Attempting to join Nations-Atlas server...');
-            setTimeout(() => {
-                this.bot.chat('/joinq Nations-Atlas');
-                this.serverJoined = true;
-                console.log('Successfully joined Nations-Atlas server!');
-            }, 5000); // Wait 5 seconds before sending command
+            this.serverJoined = false; // Reset serverJoined on initial login
+
+            // Only attempt to join Nations-Atlas if not already in the process
+            if (!this.isJoiningNationsAtlas) {
+                this.isJoiningNationsAtlas = true;
+                console.log('Attempting to join Nations-Atlas server...');
+                setTimeout(() => {
+                    console.log('Sending /joinq Nations-Atlas command...');
+                    this.bot.chat('/joinq Nations-Atlas');
+                    console.log('/joinq Nations-Atlas command sent. Waiting for server join confirmation...');
+
+                    // Listen for the next spawn event to confirm server join
+                    this.bot.once('spawn', () => {
+                        this.serverJoined = true;
+                        this.isJoiningNationsAtlas = false; // Reset flag
+                        console.log('Successfully joined Nations-Atlas server (spawn event after /joinq detected)!');
+                    });
+
+                }, 1000); // Wait 1 second before sending command
+            } else {
+                console.log('Already attempting to join Nations-Atlas, skipping duplicate /joinq.');
+            }
             
             this.emit('connected');
         });
@@ -183,15 +221,18 @@ class ReputationBot extends EventEmitter {
             console.log('Mineflayer bot disconnected');
             this.connected = false;
             this.serverJoined = false;
+            this.isJoiningNationsAtlas = false; // Reset flag on disconnect
         });
 
-        this.bot.on('error', (error) => {
-            console.error('Mineflayer bot error:', error);
+        this.bot.on('error', (err) => { // Keeping this error handler as it calls reconnectBot
+            console.error('Mineflayer bot error:', err); // Changed log to error
             if (this.bot) {
                 this.bot.end();
             }
             this.connected = false;
             this.serverJoined = false;
+            this.isJoiningNationsAtlas = false; // Reset flag on error
+            this.reconnectBot();
         });
 
         this.bot.on('windowOpen', (window) => {
@@ -200,12 +241,16 @@ class ReputationBot extends EventEmitter {
         });
 
         this.bot.on('messagestr', (message) => {
-            // Log important messages only
-            if (message.includes('joined the game') || 
-                message.includes('left the game') ||
-                message.includes('server') ||
-                message.includes('error')) {
-                console.log('Chat message:', message);
+            // Log all chat messages for debugging
+            console.log(`Chat message (serverJoined: ${this.serverJoined}): ${message}`);
+
+            // Check for specific message to confirm server join
+            if (message.includes('[Lands]')) {
+                if (!this.serverJoined) { // Only set if not already true
+                    this.serverJoined = true;
+                    this.isJoiningNationsAtlas = false; // Reset flag
+                    console.log('Server join confirmed by [Lands] message. this.serverJoined set to true.');
+                }
             }
         });
         
@@ -213,13 +258,7 @@ class ReputationBot extends EventEmitter {
             console.log('Bot was kicked from server:', reason);
             this.connected = false;
             this.serverJoined = false;
-            this.reconnectBot();
-        });
-        
-        this.bot.on('error', (err) => {
-            console.log('Mineflayer bot error:', err);
-            this.connected = false;
-            this.serverJoined = false;
+            this.isJoiningNationsAtlas = false; // Reset flag on kicked
             this.reconnectBot();
         });
     }
@@ -258,7 +297,7 @@ class ReputationBot extends EventEmitter {
     reconnectBot() {
         setTimeout(() => {
             console.log('Attempting to reconnect Mineflayer bot...');
-            this.connectBot(); // Assuming connectBot is the method to connect the bot
+            this.connect(process.env.MINECRAFT_USERNAME || 'SantoriaDiscordBot'); // Connect using the defined method
         }, 10000); // Wait 10 seconds before attempting to reconnect
     }
 

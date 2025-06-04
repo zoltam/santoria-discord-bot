@@ -9,6 +9,7 @@ import { data as trackedData, execute as trackedExecute } from './commands/track
 import { checkTrackers } from './trackers.js';
 import { initTrackers } from './trackers.js';
 import { getMineflayerBot } from './mineflayerBot.js';
+// import { getTestBot } from './testBot.js'; // Import the new test bot
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -24,6 +25,8 @@ if (!TOKEN || !CLIENT_ID) {
 
 const commands = [landData, playersData, trackData, untrackData, repData, trackedData];
 
+// let testBotInstance = null; // Declare testBotInstance here - REMOVED
+
 client.on('ready', async () => {
     console.log('ENABLE_MINEFLAYER:', process.env.ENABLE_MINEFLAYER, '=>', ENABLE_MINEFLAYER);
     console.log(`Logged in as ${client.user.tag}`);
@@ -35,6 +38,10 @@ client.on('ready', async () => {
         bot.startPeriodicUpdates().catch(error => {
             console.error("Failed to start reputation updates:", error);
         });
+        // testBotInstance = getTestBot(); // Get the test bot instance - REMOVED
+        // testBotInstance.start().catch(error => { // Start the test bot - REMOVED
+        //     console.error("Failed to start TestBot:", error); - REMOVED
+        // });
     } else {
         console.log('Mineflayer features are disabled.');
     }
@@ -76,7 +83,7 @@ client.on('interactionCreate', async interaction => {
                 },
                 reply: interaction.reply.bind(interaction),
                 editReply: interaction.editReply.bind(interaction),
-                deferReply: interaction.deferReply.bind(interaction),
+                deferReply: interaction.deferReply.bind(mockInteraction), // Corrected binding
                 user: interaction.user,
                 guildId: interaction.guildId,
                 channelId: interaction.channelId,
@@ -102,6 +109,9 @@ client.on('interactionCreate', async interaction => {
 // Handle process exit
 process.on('SIGINT', () => {
     console.log('Shutting down...');
+    // if (ENABLE_MINEFLAYER && testBotInstance) { // Check if testBotInstance exists - REMOVED
+    //     testBotInstance.stop(); // Stop the test bot - REMOVED
+    // }
     if (ENABLE_MINEFLAYER) {
         const bot = getMineflayerBot();
         bot.stop();

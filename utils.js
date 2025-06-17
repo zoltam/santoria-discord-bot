@@ -104,3 +104,19 @@ export function formatUuid(uuid) {
     }
     return `${uuid.substring(0, 8)}-${uuid.substring(8, 12)}-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20, 32)}`;
 }
+
+export async function fetchUuidByUsername(username) {
+    try {
+        const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.id) {
+                return data.id; // Returns the UUID
+            }
+        }
+        return null; // Player not found or UUID not available
+    } catch (error) {
+        console.error(`Error fetching UUID for ${username}:`, error);
+        return null;
+    }
+}

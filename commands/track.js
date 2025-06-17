@@ -1,4 +1,4 @@
-import { fetchOnlinePlayers } from '../utils.js';
+import { fetchOnlinePlayers, fetchUuidByUsername } from '../utils.js';
 import { addTracker } from '../trackers.js';
 
 export const data = {
@@ -6,9 +6,10 @@ export const data = {
     description: 'Track a player',
     options: [{
         name: 'player',
-        type: 3,
+        type: 3, // STRING type
         description: 'Minecraft username',
-        required: true
+        required: true,
+        autocomplete: true // Enable autocomplete
     }]
 };
 
@@ -16,22 +17,35 @@ export async function execute(interaction) {
     const playerName = interaction.options.getString('player');
     const userId = interaction.user.id;
     const onlinePlayers = await fetchOnlinePlayers();
-    const player = onlinePlayers.find(p => p.name.toLowerCase() === playerName.toLowerCase());
+    let playerUuid = null;
+    let playerWorld = null;
+    let isOnline = false;
+
+    const onlinePlayer = onlinePlayers.find(p => p.name.toLowerCase() === playerName.toLowerCase());
+
+    if (onlinePlayer) {
+        playerUuid = onlinePlayer.uuid;
+        playerWorld = onlinePlayer.world;
+        isOnline = true;
+    } else {
+        // If not online, try to fetch UUID from Mojang API
+        playerUuid = await fetchUuidByUsername(playerName);
+    }
     
-    if (!player) {
+    if (!playerUuid) {
         await interaction.reply({
-            content: `Could not find player ${playerName} online to get their UUID. Please try again when they are online.`,
+            content: `Could not find player ${playerName} to get their UUID. Please ensure the username is correct.`,
             ephemeral: true
         });
         return;
     }
 
     addTracker(
-        player.uuid, // Pass UUID
-        playerName, // Pass original casing for username
+        playerUuid,
+        playerName,
         userId,
-        !!player,
-        player?.world || null
+        isOnline,
+        playerWorld
     );
     
     await interaction.reply({

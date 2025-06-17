@@ -9,6 +9,7 @@ import { data as trackedData, execute as trackedExecute } from './commands/track
 import { checkTrackers } from './trackers.js';
 import { initTrackers } from './trackers.js';
 import { getMineflayerBot } from './mineflayerBot.js';
+import { fetchOnlinePlayers } from './utils.js'; // Import fetchOnlinePlayers for autocomplete
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -59,6 +60,15 @@ client.on('interactionCreate', async interaction => {
         switch (interaction.commandName) {
             case 'land': return await landAutocomplete(interaction);
             case 'untrack': return await untrackAutocomplete(interaction);
+            case 'track':
+                const focusedValue = interaction.options.getFocused();
+                const onlinePlayers = await fetchOnlinePlayers();
+                const choices = onlinePlayers
+                    .filter(player => player.name.toLowerCase().startsWith(focusedValue.toLowerCase()))
+                    .map(player => ({ name: player.name, value: player.name }));
+                
+                await interaction.respond(choices.slice(0, 25)); // Discord limits to 25 choices
+                return;
         }
         return;
     }

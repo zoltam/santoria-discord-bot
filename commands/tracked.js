@@ -97,32 +97,35 @@ export async function execute(interaction) {
             }
         }
 
-        const allPlayerEmbeds = [];
-        const components = []; // Keep components if they are used elsewhere, though not in this specific embed.
-
         // Fetch reputations for all tracked players concurrently
         const reputationPromises = userTrackedData.map(async (playerData) => {
             try {
                 const response = await fetch(`https://api.santoria.net/player/${formatUuid(playerData.uuid)}`);
                 if (response.ok) {
                     const data = await response.json();
-                    return { uuid: playerData.uuid, reputation: Math.ceil(data.reputation) };
+                    return { uuid: formatUuid(playerData.uuid), reputation: Math.ceil(data.reputation) };
                 } else {
                     console.error(`Error fetching reputation for ${playerData.username} (${playerData.uuid}): ${response.status}`);
-                    return { uuid: playerData.uuid, reputation: 'N/A' };
+                    return { uuid: formatUuid(playerData.uuid), reputation: 'N/A' };
                 }
             } catch (error) {
                 console.error(`Error fetching reputation for ${playerData.username} (${playerData.uuid}):`, error);
-                return { uuid: playerData.uuid, reputation: 'N/A' };
+                return { uuid: formatUuid(playerData.uuid), reputation: 'N/A' };
             }
         });
 
         const reputations = await Promise.all(reputationPromises);
         const reputationsMap = new Map(reputations.map(r => [r.uuid, r.reputation]));
 
+        const mainEmbed = new EmbedBuilder()
+            .setColor(0x0099ff)
+            .setTitle('Here are the players you are tracking:');
+
+        let playerFields = [];
+
         for (const playerData of userTrackedData) {
             const username = playerData.username;
-            const uuid = playerData.uuid;
+            const uuid = formatUuid(playerData.uuid); // Ensure UUID format matches onlinePlayerMap keys
             const currentOnlineData = onlinePlayerMap.get(uuid);
             const isOnline = !!currentOnlineData;
             const statusEmoji = isOnline ? '🟢' : '🔴';
@@ -135,26 +138,27 @@ export async function execute(interaction) {
             const landName = playerLandInfo ? playerLandInfo.landName : 'N/A';
             const nationName = playerLandInfo && playerLandInfo.nationName !== 'None' ? playerLandInfo.nationName : 'N/A';
 
-            const playerEmbed = new EmbedBuilder()
-                .setColor(0x0099ff)
-                .setAuthor({ name: username, iconURL: `https://mc-heads.net/avatar/${username}/32` })
-                .addFields(
-                    { name: 'Status', value: `${statusEmoji} ${isOnline ? 'Online' : 'Offline'}`, inline: false },
-                    { name: '🌍 World', value: world, inline: false },
-                    { name: '🏅 Reputation', value: `${color} ${title} (${reputationPoints !== undefined ? reputationPoints : 'N/A'} points)`, inline: false },
-                    { name: '🏘️ Land', value: landName, inline: false },
-                    { name: '👑 Nation', value: nationName, inline: false }
-                );
-            
-            allPlayerEmbeds.push(playerEmbed);
+            // Construct a concise string for the player's details
+            const playerDetails = [
+                `${statusEmoji} ${isOnline ? 'Online' : 'Offline'}`,
+                `🌍 ${world}`,
+                `🏅 ${color} ${title} (${reputationPoints !== undefined ? reputationPoints : 'N/A'} pts)`,
+                `🏘️ ${landName}`,
+                `👑 ${nationName}`
+            ].join('\n');
+
+            playerFields.push({
+                name: username,
+                value: playerDetails,
+                inline: true // This is key for side-by-side display
+            });
         }
 
-        // Discord allows up to 10 embeds per message. If more, send in chunks or simplify.
-        // For now, assuming less than or equal to 10.
+        // Add all player fields to the main embed
+        mainEmbed.addFields(playerFields);
+
         await interaction.editReply({
-            content: 'Here are the players you are tracking:', // Add a general message
-            embeds: allPlayerEmbeds,
-            components: components, // Keep components if needed
+            embeds: [mainEmbed], // Send the single main embed
             ephemeral: true
         });
 

@@ -89,8 +89,8 @@ export async function fetchOnlinePlayers() {
         // The user confirmed that players.json contains UUIDs
         return (data.players || []).map(player => ({
             name: player.name,
-            uuid: player.uuid,
-            world: player.world // Keep world info if it's used elsewhere
+            uuid: formatUuid(player.uuid), // Ensure UUID is consistently formatted
+            world: player.world
         }));
     } catch (error) {
         console.error('Fetch players error:', error);
@@ -99,10 +99,12 @@ export async function fetchOnlinePlayers() {
 }
 
 export function formatUuid(uuid) {
-    if (!uuid || uuid.length !== 32) {
-        return uuid; // Return as is if not a valid trimmed UUID
+    if (!uuid) return uuid;
+    const cleanedUuid = uuid.replace(/-/g, '').toLowerCase(); // Remove hyphens and convert to lowercase
+    if (cleanedUuid.length !== 32) {
+        return uuid; // Return as is if not a valid 32-char UUID after cleaning
     }
-    return `${uuid.substring(0, 8)}-${uuid.substring(8, 12)}-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20, 32)}`;
+    return `${cleanedUuid.substring(0, 8)}-${cleanedUuid.substring(8, 12)}-${cleanedUuid.substring(12, 16)}-${cleanedUuid.substring(16, 20)}-${cleanedUuid.substring(20, 32)}`;
 }
 
 export async function fetchPlayerUuid(username) {
@@ -111,7 +113,7 @@ export async function fetchPlayerUuid(username) {
         if (response.ok) {
             const data = await response.json();
             if (data && data.id) {
-                return data.id; // Returns the UUID
+                return formatUuid(data.id); // Format and return the UUID
             }
         }
         return null; // Player not found or UUID not available
@@ -119,4 +121,70 @@ export async function fetchPlayerUuid(username) {
         console.error(`Error fetching UUID for ${username}:`, error);
         return null;
     }
+}
+
+export async function fetchPlayerReputation(uuid) {
+    try {
+        const response = await fetch(`https://api.santoria.net/player/${formatUuid(uuid)}`);
+        if (!response.ok) {
+            console.error(`Error fetching reputation for ${uuid}: ${response.statusText}`);
+            return null;
+        }
+        const data = await response.json();
+        return data.reputation !== undefined ? Math.ceil(data.reputation) : null;
+    } catch (error) {
+        console.error(`Error fetching player reputation for ${uuid}:`, error);
+        return null;
+    }
+}
+
+// Function to get reputation title and color (moved from commands/player.js)
+export function getReputationTitleAndColor(reputation) {
+    let title = 'N/A';
+    let color = '⚪'; // Default white circle
+
+    if (reputation === 100) {
+        title = 'AMAZING';
+        color = '🟢';
+    } else if (reputation >= 90 && reputation <= 99) {
+        title = 'Very good';
+        color = '🟢';
+    } else if (reputation >= 80 && reputation <= 89) {
+        title = 'Great';
+        color = '🟢';
+    } else if (reputation >= 70 && reputation <= 79) {
+        title = 'Good';
+        color = '🟢';
+    } else if (reputation >= 60 && reputation <= 69) {
+        title = 'Not bad';
+        color = '🟡';
+    } else if (reputation >= 50 && reputation <= 59) {
+        title = 'Neutral';
+        color = '🟡';
+    } else if (reputation >= 40 && reputation <= 49) {
+        title = 'Not good';
+        color = '🟠';
+    } else if (reputation >= 30 && reputation <= 39) {
+        title = 'Bad';
+        color = '🔴';
+    } else if (reputation >= 20 && reputation <= 29) {
+        title = 'Awful';
+        color = '🔴';
+    } else if (reputation >= 10 && reputation <= 19) {
+        title = 'Horrible';
+        color = '🔴';
+    } else if (reputation >= 1 && reputation <= 9) {
+        title = 'Shocking';
+        color = '🔴';
+    } else if (reputation === 0) {
+        title = 'Shocking';
+        color = '🔴';
+    }
+
+    return { title, color };
+}
+
+export function getWorldName(world) {
+    return world === 'minecraft_overworld' ? 'Atlas' :
+           world === 'minecraft_world_spawn' ? 'Aether' : 'Unknown';
 }

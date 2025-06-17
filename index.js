@@ -7,6 +7,7 @@ import { data as untrackData, execute as untrackExecute, autocomplete as untrack
 import { data as repData, execute as repExecute } from './commands/rep.js';
 import { data as trackedData, execute as trackedExecute } from './commands/tracked.js';
 import { data as playerData, execute as playerExecute, autocomplete as playerAutocomplete } from './commands/player.js';
+import { data as lowreptrackData, execute as lowreptrackExecute } from './commands/lowreptrack.js'; // Import new command
 import { checkTrackers } from './trackers.js';
 import { initTrackers } from './trackers.js';
 import { getMineflayerBot } from './mineflayerBot.js';
@@ -24,7 +25,7 @@ if (!TOKEN || !CLIENT_ID) {
     process.exit(1);
 }
 
-const commands = [landData, playersData, trackData, untrackData, repData, trackedData, playerData];
+const commands = [landData, playersData, trackData, untrackData, repData, trackedData, playerData, lowreptrackData]; // Add new command
 
 client.on('ready', async () => {
     console.log('ENABLE_MINEFLAYER:', process.env.ENABLE_MINEFLAYER, '=>', ENABLE_MINEFLAYER);
@@ -112,6 +113,7 @@ client.on('interactionCreate', async interaction => {
         case 'rep': await repExecute(interaction); break;
         case 'tracked': await trackedExecute(interaction); break;
         case 'player': await playerExecute(interaction); break;
+        case 'lowreptrack': await lowreptrackExecute(interaction); break; // Handle new command
     }
 });
 

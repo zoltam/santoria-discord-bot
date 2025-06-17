@@ -1,51 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { fetchOnlinePlayers, formatUuid, fetchPlayerUuid, fetchLands } from '../utils.js';
-
-// Function to get reputation title and color (copied from tracked.js)
-function getReputationTitleAndColor(reputation) {
-    let title = 'N/A';
-    let color = '⚪'; // Default white circle
-
-    if (reputation === 100) {
-        title = 'AMAZING';
-        color = '🟢';
-    } else if (reputation >= 90 && reputation <= 99) {
-        title = 'Very good';
-        color = '🟢';
-    } else if (reputation >= 80 && reputation <= 89) {
-        title = 'Great';
-        color = '🟢';
-    } else if (reputation >= 70 && reputation <= 79) {
-        title = 'Good';
-        color = '🟢';
-    } else if (reputation >= 60 && reputation <= 69) {
-        title = 'Not bad';
-        color = '🟡';
-    } else if (reputation >= 50 && reputation <= 59) {
-        title = 'Neutral';
-        color = '🟡';
-    } else if (reputation >= 40 && reputation <= 49) {
-        title = 'Not good';
-        color = '🟠';
-    } else if (reputation >= 30 && reputation <= 39) {
-        title = 'Bad';
-        color = '🔴';
-    } else if (reputation >= 20 && reputation <= 29) {
-        title = 'Awful';
-        color = '🔴';
-    } else if (reputation >= 10 && reputation <= 19) {
-        title = 'Horrible';
-        color = '🔴';
-    } else if (reputation >= 1 && reputation <= 9) {
-        title = 'Shocking';
-        color = '🔴';
-    } else if (reputation === 0) {
-        title = 'Shocking';
-        color = '🔴';
-    }
-
-    return { title, color };
-}
+import { fetchOnlinePlayers, formatUuid, fetchPlayerUuid, fetchLands, getWorldName, getReputationTitleAndColor } from '../utils.js';
 
 export const data = {
     name: 'player',
@@ -118,14 +72,28 @@ export async function execute(interaction) {
 
         const data = await response.json();
 
+        const onlinePlayers = await fetchOnlinePlayers();
+        const onlinePlayerMap = new Map(onlinePlayers.map(p => [p.uuid, p]));
+        const currentOnlineData = onlinePlayerMap.get(formatUuid(data._id)); // Ensure UUID format matches
+        const isOnline = !!currentOnlineData;
+        const statusEmoji = isOnline ? '🟢' : '🔴';
+        const world = currentOnlineData?.world ? getWorldName(currentOnlineData.world) : 'N/A';
+
         const reputationPoints = Math.ceil(data.reputation);
         const { title, color } = getReputationTitleAndColor(reputationPoints);
 
-        // Convert playtime from seconds to hours and minutes
-        const totalSeconds = data.playTime || 0;
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const playtimeFormatted = `${hours}h ${minutes}m`;
+        let isHoldingRepMedallion = false;
+        if (data.reputationModifiers && Array.isArray(data.reputationModifiers)) {
+            for (const modifier of data.reputationModifiers) {
+                if (modifier.type === 'USE_REP_MEDALLION') {
+                    const timeDifference = modifier.startingTime - modifier.timeRemaining;
+                    if (timeDifference > 30) {
+                        isHoldingRepMedallion = true;
+                        break;
+                    }
+                }
+            }
+        }
 
         const playerLandInfo = playerLandMap.get(data.name.toLowerCase());
         const landName = playerLandInfo ? playerLandInfo.landName : 'N/A';
@@ -136,11 +104,13 @@ export async function execute(interaction) {
             .setColor(0x0099ff)
             .setAuthor({ name: data.name, iconURL: authorIconUrl })
             .addFields(
+                { name: 'Status', value: `${statusEmoji} ${isOnline ? 'Online' : 'Offline'}`, inline: true },
+                { name: '🌍 World', value: world, inline: true },
                 { name: 'Reputation', value: `${color} ${title} (${reputationPoints} points)`, inline: true },
                 { name: 'Sanity', value: `${data.sanity !== undefined ? data.sanity.toFixed(2) : 'N/A'}`, inline: true },
-                { name: 'Playtime', value: playtimeFormatted, inline: true },
                 { name: 'Land', value: `🏡 ${landName}`, inline: true },
-                { name: 'Nation', value: `👑 ${nationName}`, inline: true }
+                { name: 'Nation', value: `👑 ${nationName}`, inline: true },
+                ...(isHoldingRepMedallion ? [{ name: 'Rep Medallion', value: '✅ Holding', inline: true }] : [])
             )
             .setTimestamp();
 

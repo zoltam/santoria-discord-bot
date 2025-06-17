@@ -105,7 +105,7 @@ export function formatUuid(uuid) {
     return `${uuid.substring(0, 8)}-${uuid.substring(8, 12)}-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20, 32)}`;
 }
 
-export async function fetchUuidByUsername(username) {
+export async function fetchPlayerUuid(username) {
     try {
         const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
         if (response.ok) {

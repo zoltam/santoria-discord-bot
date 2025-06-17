@@ -8,6 +8,51 @@ function getWorldName(world) {
            world === 'minecraft_world_spawn' ? 'Aether' : 'Unknown';
 }
 
+function getReputationTitleAndColor(reputation) {
+    let title = 'N/A';
+    let color = '⚪'; // Default white circle
+
+    if (reputation === 100) {
+        title = 'AMAZING';
+        color = '🟢';
+    } else if (reputation >= 90 && reputation <= 99) {
+        title = 'Very good';
+        color = '🟢';
+    } else if (reputation >= 80 && reputation <= 89) {
+        title = 'Great';
+        color = '🟢';
+    } else if (reputation >= 70 && reputation <= 79) {
+        title = 'Good';
+        color = '🟢';
+    } else if (reputation >= 60 && reputation <= 69) {
+        title = 'Not bad';
+        color = '🟡';
+    } else if (reputation >= 50 && reputation <= 59) {
+        title = 'Neutral';
+        color = '🟡';
+    } else if (reputation >= 40 && reputation <= 49) {
+        title = 'Not good';
+        color = '🟠';
+    } else if (reputation >= 30 && reputation <= 39) {
+        title = 'Bad';
+        color = '🔴';
+    } else if (reputation >= 20 && reputation <= 29) {
+        title = 'Awful';
+        color = '🔴';
+    } else if (reputation >= 10 && reputation <= 19) {
+        title = 'Horrible';
+        color = '🔴';
+    } else if (reputation >= 1 && reputation <= 9) {
+        title = 'Shocking';
+        color = '🔴';
+    } else if (reputation === 0) {
+        title = 'Shocking';
+        color = '🔴';
+    }
+
+    return { title, color };
+}
+
 export const data = {
     name: 'tracked',
     description: 'List all players you are currently tracking.'
@@ -52,13 +97,8 @@ export async function execute(interaction) {
             }
         }
 
-        const embed = new EmbedBuilder()
-            .setColor(0x0099ff)
-            .setTitle('Currently Tracked Players')
-            .setDescription('Here is a list of players you are tracking:\n\nTo see more details about a land, use the `/land <land name>` command.')
-            .setTimestamp();
-
-        const components = [];
+        const allPlayerEmbeds = [];
+        const components = []; // Keep components if they are used elsewhere, though not in this specific embed.
 
         // Fetch reputations for all tracked players concurrently
         const reputationPromises = userTrackedData.map(async (playerData) => {
@@ -83,29 +123,38 @@ export async function execute(interaction) {
         for (const playerData of userTrackedData) {
             const username = playerData.username;
             const uuid = playerData.uuid;
-            const currentOnlineData = onlinePlayerMap.get(uuid); // Look up by UUID
+            const currentOnlineData = onlinePlayerMap.get(uuid);
             const isOnline = !!currentOnlineData;
             const statusEmoji = isOnline ? '🟢' : '🔴';
-            const world = isOnline && currentOnlineData?.world ? getWorldName(currentOnlineData.world) : 'N/A';
+            const world = currentOnlineData?.world ? getWorldName(currentOnlineData.world) : 'N/A';
             
             const reputationPoints = reputationsMap.get(uuid);
-            const reputationField = `**Reputation:** ⭐ ${reputationPoints !== undefined ? reputationPoints : 'N/A'}\n`;
+            const { title, color } = getReputationTitleAndColor(reputationPoints);
 
-            const playerLandInfo = playerLandMap.get(username.toLowerCase()); // Still keyed by name
+            const playerLandInfo = playerLandMap.get(username.toLowerCase());
             const landName = playerLandInfo ? playerLandInfo.landName : 'N/A';
             const nationName = playerLandInfo && playerLandInfo.nationName !== 'None' ? playerLandInfo.nationName : 'N/A';
-            const coordinates = playerLandInfo ? playerLandInfo.coordinates : 'N/A';
 
-            embed.addFields({
-                name: `${statusEmoji} ${username}`,
-                value: `**World:** 🌍 ${world}\n${reputationField}**Land:** 🏡 ${landName}\n**Nation:** 👑 ${nationName}`,
-                inline: true
-            });
+            const playerEmbed = new EmbedBuilder()
+                .setColor(0x0099ff)
+                .setAuthor({ name: username, iconURL: `https://mc-heads.net/avatar/${username}/32` })
+                .addFields(
+                    { name: 'Status', value: `${statusEmoji} ${isOnline ? 'Online' : 'Offline'}`, inline: false },
+                    { name: '🌍 World', value: world, inline: false },
+                    { name: '🏅 Reputation', value: `${color} ${title} (${reputationPoints !== undefined ? reputationPoints : 'N/A'} points)`, inline: false },
+                    { name: '🏘️ Land', value: landName, inline: false },
+                    { name: '👑 Nation', value: nationName, inline: false }
+                );
+            
+            allPlayerEmbeds.push(playerEmbed);
         }
 
+        // Discord allows up to 10 embeds per message. If more, send in chunks or simplify.
+        // For now, assuming less than or equal to 10.
         await interaction.editReply({
-            embeds: [embed],
-            components: components,
+            content: 'Here are the players you are tracking:', // Add a general message
+            embeds: allPlayerEmbeds,
+            components: components, // Keep components if needed
             ephemeral: true
         });
 

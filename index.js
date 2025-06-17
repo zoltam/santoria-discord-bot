@@ -6,6 +6,7 @@ import { data as trackData, execute as trackExecute } from './commands/track.js'
 import { data as untrackData, execute as untrackExecute, autocomplete as untrackAutocomplete } from './commands/untrack.js';
 import { data as repData, execute as repExecute } from './commands/rep.js';
 import { data as trackedData, execute as trackedExecute } from './commands/tracked.js';
+import { data as playerData, execute as playerExecute, autocomplete as playerAutocomplete } from './commands/player.js';
 import { checkTrackers } from './trackers.js';
 import { initTrackers } from './trackers.js';
 import { getMineflayerBot } from './mineflayerBot.js';
@@ -23,7 +24,7 @@ if (!TOKEN || !CLIENT_ID) {
     process.exit(1);
 }
 
-const commands = [landData, playersData, trackData, untrackData, repData, trackedData];
+const commands = [landData, playersData, trackData, untrackData, repData, trackedData, playerData];
 
 client.on('ready', async () => {
     console.log('ENABLE_MINEFLAYER:', process.env.ENABLE_MINEFLAYER, '=>', ENABLE_MINEFLAYER);
@@ -61,14 +62,15 @@ client.on('interactionCreate', async interaction => {
             case 'land': return await landAutocomplete(interaction);
             case 'untrack': return await untrackAutocomplete(interaction);
             case 'track':
-                const focusedValue = interaction.options.getFocused();
-                const onlinePlayers = await fetchOnlinePlayers();
-                const choices = onlinePlayers
-                    .filter(player => player.name.toLowerCase().startsWith(focusedValue.toLowerCase()))
+                const focusedValueTrack = interaction.options.getFocused();
+                const onlinePlayersTrack = await fetchOnlinePlayers();
+                const choicesTrack = onlinePlayersTrack
+                    .filter(player => player.name.toLowerCase().startsWith(focusedValueTrack.toLowerCase()))
                     .map(player => ({ name: player.name, value: player.name }));
                 
-                await interaction.respond(choices.slice(0, 25)); // Discord limits to 25 choices
+                await interaction.respond(choicesTrack.slice(0, 25)); // Discord limits to 25 choices
                 return;
+            case 'player': return await playerAutocomplete(interaction);
         }
         return;
     }
@@ -109,6 +111,7 @@ client.on('interactionCreate', async interaction => {
         case 'track': await trackExecute(interaction); break;
         case 'rep': await repExecute(interaction); break;
         case 'tracked': await trackedExecute(interaction); break;
+        case 'player': await playerExecute(interaction); break;
     }
 });
 

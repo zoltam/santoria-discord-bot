@@ -1,4 +1,4 @@
-import { fetchOnlinePlayers, fetchUuidByUsername } from '../utils.js';
+import { fetchOnlinePlayers, fetchPlayerUuid } from '../utils.js';
 import { addTracker } from '../trackers.js';
 
 export const data = {
@@ -29,7 +29,7 @@ export async function execute(interaction) {
         isOnline = true;
     } else {
         // If not online, try to fetch UUID from Mojang API
-        playerUuid = await fetchUuidByUsername(playerName);
+        playerUuid = await fetchPlayerUuid(playerName);
     }
     
     if (!playerUuid) {

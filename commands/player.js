@@ -132,7 +132,6 @@ export async function execute(interaction) {
         const nationName = playerLandInfo && playerLandInfo.nationName !== 'None' ? playerLandInfo.nationName : 'N/A';
 
         const authorIconUrl = `https://minotar.net/avatar/${data._id}/100.png`;
-        console.log(`Player head author icon URL: ${authorIconUrl}`);
         const embed = new EmbedBuilder()
             .setColor(0x0099ff)
             .setAuthor({ name: data.name, iconURL: authorIconUrl })

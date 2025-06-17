@@ -65,7 +65,7 @@ client.on('interactionCreate', async interaction => {
     
     if (interaction.isButton()) {
         if (interaction.customId.startsWith('show_land_info_')) {
-            const landName = interaction.customId.replace('show_land_info_', '').replace(/_/g, ' ');
+            const landName = interaction.customId.replace('show_land_info_', '');
             // Create a mock interaction object for the land command
             const mockInteraction = {
                 options: {
@@ -80,6 +80,9 @@ client.on('interactionCreate', async interaction => {
                 user: interaction.user,
                 guildId: interaction.guildId,
                 channelId: interaction.channelId,
+                isCommand: false,
+                isButton: true,
+                customId: interaction.customId,
                 // Add other properties if landExecute requires them
             };
             await landExecute(mockInteraction);

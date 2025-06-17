@@ -85,9 +85,22 @@ export async function fetchLands() {
 export async function fetchOnlinePlayers() {
     try {
         const response = await fetch('https://atlas-map.santoria.net/tiles/players.json');
-        return (await response.json()).players || [];
+        const data = await response.json();
+        // The user confirmed that players.json contains UUIDs
+        return (data.players || []).map(player => ({
+            name: player.name,
+            uuid: player.uuid,
+            world: player.world // Keep world info if it's used elsewhere
+        }));
     } catch (error) {
         console.error('Fetch players error:', error);
         return [];
     }
+}
+
+export function formatUuid(uuid) {
+    if (!uuid || uuid.length !== 32) {
+        return uuid; // Return as is if not a valid trimmed UUID
+    }
+    return `${uuid.substring(0, 8)}-${uuid.substring(8, 12)}-${uuid.substring(12, 16)}-${uuid.substring(16, 20)}-${uuid.substring(20, 32)}`;
 }

@@ -16,7 +16,21 @@ export async function execute(interaction) {
     const playerName = interaction.options.getString('player');
     const userId = interaction.user.id;
 
-    const success = removeTracker(playerName.toLowerCase(), userId);
+    const trackedPlayers = getTrackedPlayers();
+    let playerUuidToUntrack = null;
+
+    // Find the UUID for the given player name among currently tracked players
+    for (const [uuid, data] of trackedPlayers.entries()) {
+        if (data.username.toLowerCase() === playerName.toLowerCase() && data.trackedBy.has(userId)) {
+            playerUuidToUntrack = uuid;
+            break;
+        }
+    }
+
+    let success = false;
+    if (playerUuidToUntrack) {
+        success = removeTracker(playerUuidToUntrack, userId);
+    }
     
     await interaction.reply({
         content: success ? 
@@ -34,9 +48,9 @@ export async function autocomplete(interaction) {
         const trackedPlayers = getTrackedPlayers();
         const tracked = [];
         
-        for (const [_, data] of trackedPlayers) {
-            if (data?.trackedBy?.has(userId) && data.originalUsername) {
-                tracked.push(data.originalUsername);
+        for (const [uuid, data] of trackedPlayers) { // Iterate by UUID and data
+            if (data?.trackedBy?.has(userId) && data.username) { // Use data.username
+                tracked.push(data.username);
             }
         }
 

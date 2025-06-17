@@ -1,7 +1,7 @@
 import { getMineflayerBot } from '../mineflayerBot.js';
 import { EmbedBuilder } from 'discord.js';
 import { fetchLands } from '../utils.js';
-import { fetchOnlinePlayers } from '../utils.js';
+import { fetchOnlinePlayers, formatUuid } from '../utils.js';
 
 const ENABLE_MINEFLAYER = process.env.ENABLE_MINEFLAYER === 'true';
 
@@ -13,38 +13,15 @@ export const data = {
 export async function execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
 
-    if (!ENABLE_MINEFLAYER) {
-        await interaction.editReply('Mineflayer features are currently disabled, so reputation data cannot be fetched.');
-        return;
-    }
-
     try {
-        const bot = getMineflayerBot();
-        
-        // Get reputations from cache (bot now updates periodically)
-        const result = await bot.getReputations();
-        
-        if (!result.success) {
-            await interaction.editReply(`Failed to get reputation data: ${result.message}`);
-            return;
-        }
-        
-        // Convert Map to array and filter reputations <= 30
-        const reputations = Array.from(result.data.values())
-            .filter(rep => rep.points <= 30)
-            .sort((a, b) => a.points - b.points); // Sort by lowest reputation first
-            
-        if (reputations.length === 0) {
-            await interaction.editReply(`No players with reputation 30 or lower are currently online. Last updated at ${new Date(result.lastUpdate).toLocaleTimeString()}`);
-            return;
-        }
-        
         // Fetch lands and online players
         const lands = await fetchLands();
         const onlinePlayers = await fetchOnlinePlayers();
-        
-        // Create set of online player names for easy lookup
-        const onlinePlayerNames = new Set(onlinePlayers.map(player => player.name.toLowerCase()));
+
+        if (onlinePlayers.length === 0) {
+            await interaction.editReply('There are no players online currently.');
+            return;
+        }
 
         // Create a map for player land information
         const playerMap = new Map();
@@ -57,30 +34,67 @@ export async function execute(interaction) {
                 });
             }
         }
-        
+
+        const reputations = [];
+        const fetchPromises = onlinePlayers.map(async (player) => {
+            const uuid = player.uuid; // Directly use UUID from fetchOnlinePlayers
+            if (uuid) {
+                try {
+                    const response = await fetch(`https://api.santoria.net/player/${formatUuid(uuid)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.reputation !== undefined) {
+                            reputations.push({
+                                name: player.name, // Keep player name for display
+                                points: Math.ceil(data.reputation), // Round up reputation
+                                title: 'N/A', // Placeholder
+                                hourlyGain: 0 // Placeholder
+                            });
+                        }
+                    } else {
+                        console.error(`Error fetching player data for ${player.name} (${uuid}): ${response.status}`);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching player data for ${player.name} (${uuid}):`, error);
+                }
+            } else {
+                console.warn(`No UUID available for player: ${player.name}`);
+            }
+        });
+
+        await Promise.all(fetchPromises);
+
+        // Filter reputations <= 30 and sort
+        const lowReputationPlayers = reputations
+            .filter(rep => rep.points <= 30)
+            .sort((a, b) => a.points - b.points); // Sort by lowest reputation first
+
+        if (lowReputationPlayers.length === 0) {
+            await interaction.editReply(`No players with reputation 30 or lower are currently online.`);
+            return;
+        }
+
         // Create embed
         const embed = new EmbedBuilder()
             .setColor(0xFF5555)
             .setTitle('⚠️ Low Reputation Players')
-            .setDescription(`*Data updated at ${new Date(result.lastUpdate).toLocaleTimeString()}*`)
+            .setDescription(`*Data fetched from Santoria API at ${new Date().toLocaleTimeString()}*`)
             .setTimestamp();
-            
+
         // Add fields for each player
-        for (const rep of reputations) {
-            const isOnline = onlinePlayerNames.has(rep.name.toLowerCase());
-            const status = isOnline ? '🟢 Online' : '⚫ Offline';
-            const skull = rep.points <= 0 ? '💀 ' : '';
+        for (const rep of lowReputationPlayers) {
             const playerInfo = playerMap.get(rep.name.toLowerCase());
             const land = playerInfo ? playerInfo.landName : 'Unknown';
             const coordinates = playerInfo ? playerInfo.coordinates : 'Unknown';
-            
+            const skull = rep.points <= 0 ? '💀 ' : '';
+
             embed.addFields({
-                name: `${skull}${rep.name} (${rep.points})`,
-                value: `**${rep.title}** | +${rep.hourlyGain}/hr\n**Status:** ${status}\n**Land:** ${land}\n**Coordinates:** ${coordinates}`,
+                name: `${skull}${rep.name} (${rep.points})`, // Display reputation (already rounded)
+                value: `**Status:** 🟢 Online\n**Land:** ${land}\n**Coordinates:** ${coordinates}`, // Removed title and hourlyGain as they are not in the new API
                 inline: false
             });
         }
-        
+
         await interaction.editReply({ embeds: [embed] });
     } catch (error) {
         console.error('Error executing rep command:', error);

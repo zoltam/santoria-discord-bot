@@ -3,23 +3,24 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const TRACKERS_FILE = path.resolve('./data/trackers.json');
-let trackedPlayers = new Map();
+let trackedPlayers = new Map(); // Map<uuid, { username: string, lastStatus: { online: boolean, world: string }, trackedBy: Set<string> }>
 
 export async function initTrackers() {
     try {
         const data = await fs.readFile(TRACKERS_FILE, 'utf-8');
         const raw = JSON.parse(data);
         
-trackedPlayers = new Map(
-    Object.entries(raw).map(([username, entry]) => [
-        username,
-        {
-            originalUsername: entry.originalUsername || username,
-            lastStatus: entry.lastStatus,
-            trackedBy: new Set(entry.trackedBy)
-        }
-    ])
-);
+        // Convert loaded data to the new Map structure (UUID as key)
+        trackedPlayers = new Map(
+            Object.entries(raw).map(([uuid, entry]) => [
+                uuid,
+                {
+                    username: entry.username, // Store username for display
+                    lastStatus: entry.lastStatus,
+                    trackedBy: new Set(entry.trackedBy)
+                }
+            ])
+        );
         console.log(`Loaded ${trackedPlayers.size} trackers from file`);
     } catch (error) {
         if (error.code === 'ENOENT') {
@@ -33,10 +34,10 @@ trackedPlayers = new Map(
 async function saveTrackers() {
     try {
         const toSave = Object.fromEntries(
-            Array.from(trackedPlayers.entries()).map(([username, data]) => [
-                username,
+            Array.from(trackedPlayers.entries()).map(([uuid, data]) => [
+                uuid, // Use UUID as the key in the JSON file
                 {
-                    originalUsername: data.originalUsername,
+                    username: data.username, // Store username in the JSON file
                     lastStatus: data.lastStatus,
                     trackedBy: Array.from(data.trackedBy)
                 }
@@ -48,27 +49,25 @@ async function saveTrackers() {
     }
 }
 
-export function addTracker(username, userId, isOnline, world) {
-    const key = username.toLowerCase();
-    const data = trackedPlayers.get(key) || {
-        originalUsername: username,
+export function addTracker(uuid, username, userId, isOnline, world) {
+    const data = trackedPlayers.get(uuid) || {
+        username: username, // Store the current username
         lastStatus: { online: isOnline, world },
         trackedBy: new Set()
     };
     data.trackedBy.add(userId);
-    trackedPlayers.set(key, data);
+    trackedPlayers.set(uuid, data); // Use UUID as the key
     saveTrackers();
 }
 
-export function removeTracker(username, userId) {
-    const key = username.toLowerCase();
-    const data = trackedPlayers.get(key);
+export function removeTracker(uuid, userId) {
+    const data = trackedPlayers.get(uuid); // Use UUID as the key
     
     if (!data) return false;
     
     const hadTracking = data.trackedBy.delete(userId);
     if (data.trackedBy.size === 0) {
-        trackedPlayers.delete(key);
+        trackedPlayers.delete(uuid); // Use UUID as the key
     }
     
     if (hadTracking) saveTrackers();
@@ -78,22 +77,30 @@ export function removeTracker(username, userId) {
 export async function checkTrackers(client) {
     try {
         const onlinePlayers = await fetchOnlinePlayers();
-        const onlineMap = new Map(onlinePlayers.map(p => [p.name.toLowerCase(), p]));
+        // Create a map keyed by UUID for efficient lookup
+        const onlineMap = new Map(onlinePlayers.map(p => [p.uuid, p]));
         
-        for (const [username, data] of trackedPlayers.entries()) {
-            const current = onlineMap.get(username);
+        // Iterate through tracked players (which are now keyed by UUID)
+        for (const [uuid, data] of trackedPlayers.entries()) {
+            const current = onlineMap.get(uuid); // Look up by UUID
             const newStatus = {
                 online: !!current,
                 world: current?.world || null
             };
             
+            // Use data.username for notifications
             if (newStatus.online !== data.lastStatus.online) {
-                notifyStatusChange(client, data.trackedBy, username, newStatus);
+                notifyStatusChange(client, data.trackedBy, data.username, newStatus);
             } else if (newStatus.online && newStatus.world !== data.lastStatus.world) {
-                notifyWorldChange(client, data.trackedBy, username, newStatus.world);
+                notifyWorldChange(client, data.trackedBy, data.username, newStatus.world);
             }
             
+            // Update the lastStatus and also the username in case it changed
             data.lastStatus = newStatus;
+            if (current && data.username !== current.name) {
+                data.username = current.name; // Update username if it changed
+                saveTrackers(); // Save if username changed
+            }
         }
     } catch (error) {
         console.error('Tracker check error:', error);

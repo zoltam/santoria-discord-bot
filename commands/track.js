@@ -18,8 +18,17 @@ export async function execute(interaction) {
     const onlinePlayers = await fetchOnlinePlayers();
     const player = onlinePlayers.find(p => p.name.toLowerCase() === playerName.toLowerCase());
     
+    if (!player) {
+        await interaction.reply({
+            content: `Could not find player ${playerName} online to get their UUID. Please try again when they are online.`,
+            ephemeral: true
+        });
+        return;
+    }
+
     addTracker(
-        playerName, // Pass original casing for originalUsername
+        player.uuid, // Pass UUID
+        playerName, // Pass original casing for username
         userId,
         !!player,
         player?.world || null

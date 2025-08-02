@@ -1,4 +1,4 @@
-import { fetchOnlinePlayers, formatUuid, fetchPlayerReputation, fetchLands, getReputationTitleAndColor } from './utils.js';
+import { fetchOnlinePlayers, formatUuid, fetchPlayerReputation, fetchLands, getReputationTitleAndColor, fetchPlayerData } from './utils.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -8,6 +8,8 @@ const LOW_REP_THRESHOLD = 30; // Define what "low rep" means
 let trackedPlayers = new Map(); // Map<uuid, { username: string, lastStatus: { online: boolean, world: string }, trackedBy: Set<string> }>
 let lowRepTrackingUsers = new Set(); // New setting for low rep tracking, stores user IDs
 let lowRepPlayersLastStatus = new Map(); // Map<uuid, { username: string, online: boolean, reputation: number, land: string, nation: string }>
+let killTrackingUsers = new Set(); // New setting for kill tracking, stores user IDs
+let playerLastKillers = new Map(); // Map<uuid, Map<killerUuid, timestamp>> - track last known killers for each player
 
 export async function initTrackers() {
     try {
@@ -34,8 +36,10 @@ export async function initTrackers() {
                 entry
             ])
         );
+        killTrackingUsers = new Set(raw.killTrackingUsers || []); // Load kill tracking users
         console.log(`Loaded ${trackedPlayers.size} trackers from file`);
         console.log(`Low rep tracking is enabled for ${lowRepTrackingUsers.size} users.`);
+        console.log(`Kill tracking is enabled for ${killTrackingUsers.size} users.`);
     } catch (error) {
         if (error.code === 'ENOENT') {
             console.log('No trackers file found, starting fresh');
@@ -59,7 +63,8 @@ async function saveTrackers() {
                 ])
             ),
             lowRepTrackingUsers: Array.from(lowRepTrackingUsers), // Save the setting
-            lowRepPlayersLastStatus: Object.fromEntries(Array.from(lowRepPlayersLastStatus.entries()))
+            lowRepPlayersLastStatus: Object.fromEntries(Array.from(lowRepPlayersLastStatus.entries())),
+            killTrackingUsers: Array.from(killTrackingUsers) // Save kill tracking users
         };
         await fs.writeFile(TRACKERS_FILE, JSON.stringify(toSave, null, 2));
     } catch (error) {
@@ -77,6 +82,21 @@ export function toggleLowRepTracking(userId) {
         lowRepTrackingUsers.delete(userId);
     } else {
         lowRepTrackingUsers.add(userId);
+    }
+    saveTrackers();
+    return !isEnabled;
+}
+
+export function getKillTrackingStatus(userId) {
+    return killTrackingUsers.has(userId);
+}
+
+export function toggleKillTracking(userId) {
+    const isEnabled = killTrackingUsers.has(userId);
+    if (isEnabled) {
+        killTrackingUsers.delete(userId);
+    } else {
+        killTrackingUsers.add(userId);
     }
     saveTrackers();
     return !isEnabled;
@@ -173,6 +193,11 @@ export async function checkTrackers(client) {
             lowRepPlayersLastStatus = currentLowRepOnlinePlayers;
             saveTrackers(); // Save the updated low rep player status
         }
+
+        // Handle kill tracking
+        if (killTrackingUsers.size > 0) {
+            await checkKills(client, onlinePlayers, killTrackingUsers);
+        }
     } catch (error) {
         console.error('Tracker check error:', error);
     }
@@ -197,6 +222,53 @@ function notifyLowRepPlayerOnline(client, users, playerInfo) {
 
 function notifyWorldChange(client, users, username, world) {
     const message = `🌍 ${username} moved to ${getWorldName(world)}!`;
+    sendNotifications(client, users, message);
+}
+
+async function checkKills(client, onlinePlayers, trackingUsers) {
+    try {
+        // Get current timestamp to check for recent kills (within last 30 seconds)
+        const now = Date.now();
+        const recentThreshold = 30000; // 30 seconds
+
+        for (const player of onlinePlayers) {
+            const playerData = await fetchPlayerData(player.uuid);
+            if (!playerData || !playerData.recentKillers) continue;
+
+            // Get the last known killers for this player
+            const lastKillers = playerLastKillers.get(player.uuid) || new Map();
+            const currentKillers = new Map();
+
+            // Process each recent killer
+            for (const [killerUuid, timestamp] of Object.entries(playerData.recentKillers)) {
+                const formattedKillerUuid = formatUuid(killerUuid);
+                currentKillers.set(formattedKillerUuid, timestamp);
+
+                // Check if this is a new kill (not in last known killers)
+                const lastTimestamp = lastKillers.get(formattedKillerUuid);
+                if (!lastTimestamp || timestamp > lastTimestamp) {
+                    // Check if the kill is recent enough to notify
+                    if (now - timestamp < recentThreshold) {
+                        // Find the killer's name from online players
+                        const killer = onlinePlayers.find(p => p.uuid === formattedKillerUuid);
+                        const killerName = killer ? killer.name : `Unknown (${formattedKillerUuid})`;
+                        
+                        // Notify about the kill
+                        notifyKill(client, trackingUsers, player.name, killerName);
+                    }
+                }
+            }
+
+            // Update the last known killers for this player
+            playerLastKillers.set(player.uuid, currentKillers);
+        }
+    } catch (error) {
+        console.error('Kill check error:', error);
+    }
+}
+
+function notifyKill(client, users, victimName, killerName) {
+    const message = `💀 ${victimName} was killed by ${killerName}`;
     sendNotifications(client, users, message);
 }
 

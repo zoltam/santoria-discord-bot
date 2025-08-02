@@ -138,6 +138,21 @@ export async function fetchPlayerReputation(uuid) {
     }
 }
 
+export async function fetchPlayerData(uuid) {
+    try {
+        const response = await fetch(`https://api.santoria.net/player/${formatUuid(uuid)}`);
+        if (!response.ok) {
+            console.error(`Error fetching player data for ${uuid}: ${response.statusText}`);
+            return null;
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error(`Error fetching player data for ${uuid}:`, error);
+        return null;
+    }
+}
+
 // Function to get reputation title and color (moved from commands/player.js)
 export function getReputationTitleAndColor(reputation) {
     let title = 'N/A';
@@ -186,5 +201,6 @@ export function getReputationTitleAndColor(reputation) {
 
 export function getWorldName(world) {
     return world === 'minecraft_overworld' ? 'Atlas' :
-           world === 'minecraft_world_spawn' ? 'Aether' : 'Unknown';
+           world === 'minecraft_world_spawn' ? 'Aether' :
+           world === 'minecraft_world_mining_caverns' ? 'Mining' : 'Unknown';
 }
